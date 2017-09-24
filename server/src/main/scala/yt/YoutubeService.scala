@@ -18,18 +18,19 @@ object YoutubeService extends LazyLogging {
 
   final private val youtubeDlOptions = s"-x --audio-format mp3 -o $downloadFolder/$filenamePrefix-%(id)s.mp3"
 
+  //Regex matchers
+  final private val downloadPercentaceRegex = "(\\d+\\.\\d)\\%".r
+
   def downloadVideo(videoUrl: String): Future[String] = {
     var fileName = ""
 
     val downloadF = s"youtube-dl $youtubeDlOptions $videoUrl".exec(StIO(stdOut = { out =>
-      "(\\d+\\.\\d)\\%".r.findFirstIn(out) map { matched =>
-        logger.info(s"Download $matched")
+      downloadPercentaceRegex.findFirstIn(out) map { matchedDownloadPerc =>
+        logger.info(s"Download $matchedDownloadPerc")
       }
 
-      fileNameRegex.findFirstIn(out) match {
-        case Some(matching) =>
-          fileName = matching
-        case None =>
+      fileNameRegex.findFirstIn(out).map { matchedFilename =>
+        fileName = matchedFilename
       }
 
     }))
@@ -55,22 +56,8 @@ object YoutubeService extends LazyLogging {
 
   }
 
-  def getFilePath(uuid: String): File = {
-
-    val path = urlsToFile.get(uuid)
-    if (path.isEmpty)
-      return new File("")
-
-    val file = new File(path.get)
-    if (!file.exists)
-      throw new IllegalStateException(s"File not found for $uuid at $path")
-
-    //remove from map
-    //logger.debug(s"removing $uuid")
-    //urlsToFile -= uuid
-
-    //TODO remove file after serving it
-    file
+  def getFilePath(uuid: String): Option[String] = {
+    urlsToFile.get(uuid)
   }
 
 }
